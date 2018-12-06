@@ -1,7 +1,9 @@
 package com.deitel.cannongame;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -116,12 +118,53 @@ public class CannonView extends SurfaceView {
     }
 
     public void stopGame() {
-
+        if (cannonThread != null)
+            cannonThread.setRunning(false);
     }
 
     public void releaseResources() {
-
+        soundPool.release(); // release all resources used by the SoundPool
+        soundPool = null;
     }
+
+    @Override
+    public void surfaceChanged(SurfaceHolder holder, int format,
+                               int width, int height)
+    {
+    } // end method surfaceChanged
+
+    // called when surface is first created
+    @Override
+    public void surfaceCreated(SurfaceHolder holder)
+    {
+        if (!dialogIsDisplayed)
+        {
+            cannonThread = new CannonThread(holder);
+            cannonThread.setRunning(true);
+            cannonThread.start(); // start the game loop thread
+        } // end if
+    } // end method surfaceCreated
+
+    // called when the surface is destroyed
+    @Override
+    public void surfaceDestroyed(SurfaceHolder holder)
+    {
+        // ensure that thread terminates properly
+        boolean retry = true;
+        cannonThread.setRunning(false);
+
+        while (retry)
+        {
+            try
+            {
+                cannonThread.join();
+                retry = false;
+            } // end try
+            catch (InterruptedException e)
+            {
+            } // end catch
+        } // end while
+    } // end method surfaceDestroyed
 
     public void fireCannonball(MotionEvent event) {
         if (cannonballOnScreen)
@@ -214,7 +257,7 @@ public class CannonView extends SurfaceView {
         }
     }
 
-    private void updatePosition(double elapsedTimeMS) {
+    private void updatePositions(double elapsedTimeMS) {
         double interval = elapsedTimeMS / 1000.0;
          if(cannonballOnScreen) {
              cannonball.x += interval * cannonballVelocityX;
@@ -276,8 +319,91 @@ public class CannonView extends SurfaceView {
     }
 
     public void drawGameElements(Canvas canvas) {
+        canvas.drawRect(0, 0, canvas.getWidth(), canvas.getHeight(),
+                backgroundPaint);
 
+        // display time remaining
+        canvas.drawText(getResources().getString(
+                R.string.time_remaining_format, timeLeft), 30, 50, textPaint);
+
+        // if a cannonball is currently on the screen, draw it
+        if (cannonballOnScreen)
+            canvas.drawCircle(cannonball.x, cannonball.y, cannonballRadius,
+                    cannonballPaint);
+
+        // draw the cannon barrel
+        canvas.drawLine(0, screenHeight / 2, barrelEnd.x, barrelEnd.y,
+                cannonPaint);
+
+        // draw the cannon base
+        canvas.drawCircle(0, (int) screenHeight / 2,
+                (int) cannonBaseRadius, cannonPaint);
+
+        // draw the blocker
+        canvas.drawLine(blocker.start.x, blocker.start.y, blocker.end.x,
+                blocker.end.y, blockerPaint);
+
+        Point currentPoint = new Point(); // start of current target section
+
+        // initialize curPoint to the starting point of the target
+        currentPoint.x = target.start.x;
+        currentPoint.y = target.start.y;
+
+        // draw the target
+        for (int i = 1; i <= TARGET_PIECES; ++i)
+        {
+            // if this target piece is not hit, draw it
+            if (!hitStates[i - 1])
+            {
+                // alternate coloring the pieces yellow and blue
+                if (i % 2 == 0)
+                    targetPaint.setColor(Color.YELLOW);
+                else
+                    targetPaint.setColor(Color.BLUE);
+
+                canvas.drawLine(currentPoint.x, currentPoint.y, target.end.x,
+                        (int) (currentPoint.y + pieceLength), targetPaint);
+            } // end if
+
+            // move curPoint to the start of the next piece
+            currentPoint.y += pieceLength;
+        }
     }
+
+    private void showGameOverDialog(int messageId)
+    {
+        // create a dialog displaying the given String
+        final AlertDialog.Builder dialogBuilder =
+                new AlertDialog.Builder(getContext());
+        dialogBuilder.setTitle(getResources().getString(messageId));
+        dialogBuilder.setCancelable(false);
+
+        // display number of shots fired and total time elapsed
+        dialogBuilder.setMessage(getResources().getString(
+                R.string.results_format, shotsFired, totalElapsedTime));
+        dialogBuilder.setPositiveButton(R.string.reset_game,
+                new DialogInterface.OnClickListener()
+                {
+                    // called when "Reset Game" Button is pressed
+                    @Override
+                    public void onClick(DialogInterface dialog, int which)
+                    {
+                        dialogIsDisplayed = false;
+                        newGame(); // set up and start a new game
+                    } // end method onClick
+                } // end anonymous inner class
+        ); // end call to setPositiveButton
+
+        activity.runOnUiThread(
+                new Runnable() {
+                    public void run()
+                    {
+                        dialogIsDisplayed = true;
+                        dialogBuilder.show(); // display the dialog
+                    } // end method run
+                } // end Runnable
+        ); // end call to runOnUiThread
+    } // end method showGameOverDialog
 
     private class CannonThread extends Thread {
         private SurfaceHolder surfaceHolder;
@@ -286,6 +412,11 @@ public class CannonView extends SurfaceView {
         public CannonThread(SurfaceHolder holder) {
             surfaceHolder = holder;
             setName("OldCannonThread");
+        }
+
+        public void setRunning(boolean running)
+        {
+            threadIsRunning = running;
         }
 
         @Override
