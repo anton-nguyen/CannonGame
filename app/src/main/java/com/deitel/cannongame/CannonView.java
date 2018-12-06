@@ -19,6 +19,14 @@ import java.util.Map;
 public class CannonView extends SurfaceView {
         //implements SurfaceHolder.Callback
 
+    // to test apk for takehome final, kill cannongame already in emulator
+    // settings/apps, find cannongame, uninstall
+    // go to command prompt/terminal and find adb to put on phone
+
+    // play another sound when cannonball is left of cannon base and in the center of cannon base
+    // add your own wav file
+    // get rid of "boing" noise
+
     private CannonThread cannonThread; // controls the game loop
     private Activity activity; // to display Game Over dialog in GUI thread
     private boolean dialogIsDisplayed = false;
@@ -85,7 +93,7 @@ public class CannonView extends SurfaceView {
     public CannonView(Context context, AttributeSet attrs) {
         super(context, attrs);
         activity = (Activity) context;
-//        getHolder().addCallback(this);
+        getHolder().addCallback(this);
 
         blocker = new Line();
         target = new Line();
@@ -115,12 +123,35 @@ public class CannonView extends SurfaceView {
 
     }
 
-    public void fireCannonball(MotionEvent e) {
+    public void fireCannonball(MotionEvent event) {
+        if (cannonballOnScreen)
+            return;
 
+        double angle = alignCannon(event);
+
+        cannonball.x = cannonballRadius;
+        cannonball.y = screenHeight / 2;
+
+        cannonballVelocityX = (int) (cannonballSpeed * Math.sin(angle));
+
+        cannonballVelocityY = (int) (-cannonballSpeed * Math.cos(angle));
+        cannonballOnScreen = true;
+        ++shotsFired;
+
+        soundPool.play(soundMap.get(CANNON_SOUND_ID), 1, 1, 1, 0, 1f);
     }
 
-    public double alignCannon(MotionEvent e) {
+    public double alignCannon(MotionEvent event) {
+        Point touchPoint = new Point((int) event.getX(), (int) event.getY());
+        double centerMinusY = (screenHeight / 2 - touchPoint.y);
         double angle = 0;
+        if (centerMinusY != 0)
+            angle = Math.atan((double) touchPoint.x / centerMinusY);
+        if (touchPoint.y > screenHeight / 2)
+            angle += Math.PI;
+        barrelEnd.x = (int) (cannonLength * Math.sin(angle));
+        barrelEnd.y =
+                (int) (-cannonLength * Math.cos(angle) + screenHeight / 2);
         return angle;
     }
 
@@ -221,6 +252,27 @@ public class CannonView extends SurfaceView {
          }
 
          double blockerUpdate = interval * blockerVelocity;
+         blocker.start.y += blockerUpdate;
+         blocker.end.y += blockerUpdate;
+
+         double targetUpdate = interval * targetVelocity;
+         target.start.y += targetUpdate;
+         target.end.y += targetUpdate;
+
+         if (blocker.start.y < 0 || blocker.end.y > screenHeight)
+             blockerVelocity *= -1;
+
+         if (target.start.y < 0 || target.end.y > screenHeight)
+             targetVelocity *= -1;
+
+         timeLeft -= interval;
+
+         if (timeLeft <= 0) {
+             timeLeft = 0.0;
+             gameOver = true;
+             cannonThread.setRunning(false);
+             showGameOverDialog(R.string.lose);
+         }
     }
 
     public void drawGameElements(Canvas canvas) {
