@@ -2,10 +2,8 @@ package com.deitel.cannongame;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.AlertDialog.Builder;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.DialogInterface.OnClickListener;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -33,9 +31,9 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     private int level;
 
     // constants for game play
-    public int TARGET_PIECES; // sections in the target
-    public int MISS_PENALTY; // seconds deducted on a miss
-    public int HIT_REWARD; // seconds added on a hit
+    public int TARGET_PIECES = 3; // sections in the target
+    public int MISS_PENALTY = 2; // seconds deducted on a miss
+    public int HIT_REWARD = 3; // seconds added on a hit
 
     // variables for the game loop and tracking statistics
     private boolean gameOver; // is the game over?
@@ -171,34 +169,38 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     // reset all the screen elements and start a new game
-    public void newGame(boolean reset) {
-        if (reset) {
+    public void newGame(boolean startover) {
+        if (startover) {
             level = 1;
             timeLeft = 60.0;
-            MISS_PENALTY = 2;
             HIT_REWARD = 3;
+            MISS_PENALTY = 2;
+            TARGET_PIECES = 5;
+
+            // blocker changes
             blockerDistance = (screenWidth * 5) / 8;
             blocker.start = new Point(blockerDistance, blockerBeginning);
             blocker.end = new Point(blockerDistance, blockerEnd);
+
         } else {
             level++;
             TARGET_PIECES += 2;
+            if (HIT_REWARD > 0) HIT_REWARD--;
             MISS_PENALTY++;
-            if (HIT_REWARD > 0) {
-                HIT_REWARD--;
-            }
-            if (blockerDistance > 200) {
-                blockerDistance -= 100;
-            }
+
+            // blocker changes
+            if (blockerDistance > 200) blockerDistance -= 100;
             blocker.start = new Point(blockerDistance, blockerBeginning);
             blocker.end = new Point(blockerDistance, blockerEnd);
         }
+
         // initialize hitStates as a boolean array
         hitStates = new boolean[TARGET_PIECES];
-        pieceLength = (targetEnd - targetBeginning) / TARGET_PIECES;
         // set every element of hitStates to false--restores target pieces
-        for (int i = 0; i < TARGET_PIECES; ++i)
+        int i;
+        for (i = 0; i < TARGET_PIECES; ++i)
             hitStates[i] = false;
+        pieceLength = (targetEnd - targetBeginning) / TARGET_PIECES;
 
         targetPiecesHit = 0; // no target pieces have been hit
         blockerVelocity = initialBlockerVelocity; // set initial velocity
@@ -229,7 +231,10 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
             cannonball.x += interval * cannonballVelocityX;
             cannonball.y += interval * cannonballVelocityY;
 
-            if (cannonball.x + cannonballRadius < cannonBaseRadius && cannonball.y > (screenHeight / 2) - cannonBaseRadius && cannonball.y < (screenHeight / 2) + cannonBaseRadius) {
+            // ricochet sound
+            if (cannonball.x + cannonballRadius < cannonBaseRadius &&
+                    cannonball.y > (screenHeight / 2) - cannonBaseRadius &&
+                    cannonball.y < (screenHeight / 2) + cannonBaseRadius) {
                 soundPool.play(soundMap.get(EXTRA_SOUND_ID), 1, 1, 1, 0, 1f);
             }
 
@@ -417,32 +422,35 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     {
         // create a dialog displaying the given String
         // DialogFragment to display quiz stats and start new quiz
-        final AlertDialog.Builder dialogBuilder =
-                new AlertDialog.Builder(getContext());
+        final AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(getContext());
         dialogBuilder.setTitle(getResources().getString(messageId));
         dialogBuilder.setCancelable(false);
 
         // display number of shots fired and total time elapsed
-        dialogBuilder.setMessage(getResources().getString(
-                R.string.results_format, level, shotsFired, totalElapsedTime));
+        dialogBuilder.setMessage(getResources().getString(R.string.results_format, level, shotsFired, totalElapsedTime));
         dialogBuilder.setPositiveButton(timeLeft == 0.0 ? R.string.reset_game : R.string.next_level, new DialogInterface.OnClickListener()
                 {
                     // called when "Reset Game" Button is pressed
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        /* dialogIsDisplayed = false;
-                        newGame(false); // set up and start a new game */
+                        boolean startover = false;
+                        dialogIsDisplayed = false;
+                        if (timeLeft == 0.0) {
+                            startover = true;
+                        }
 
-                        CannonView cannonView;
-                        boolean z = false;
+                        newGame(startover); // set up and start a new game
+
+                        /* CannonView cannonView;
+                        boolean startover = false;
                         CannonView.this.dialogIsDisplayed = false;
                         if (CannonView.this.timeLeft == 0.0) {
                             cannonView = CannonView.this;
-                            z = true;
+                            startover = true;
                         } else {
                             cannonView = CannonView.this;
                         }
-                        cannonView.newGame(z);
+                        cannonView.newGame(startover); */
                     }
                 }
         );
@@ -506,7 +514,6 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
             }
             catch (InterruptedException e)
             {
-                /* Log.e(TAG, "Thread interrupted", e); */
             }
         }
     }

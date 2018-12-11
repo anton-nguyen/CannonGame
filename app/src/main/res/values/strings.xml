@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <resources>
     <string name="app_name">Cannon Game</string>
-    <string name="results_format">"Level: %1$d
-Shots fired: %2$d
-Total time: %3$.1f"</string>
+    <string name="results_format">"Level: %1$d\nShots fired: %2$d\nTotal time: %3$.1f"</string>
     <string name="reset_game">Reset Game</string>
     <string name="next_level">Continue to next level</string>
     <string name="win">You win!</string>
