@@ -20,9 +20,9 @@ import java.util.Map;
 
 public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
-    // to test apk, kill cannongame already in emulator
-    // settings/apps, find cannongame, uninstall
-    // go to command prompt/terminal and find adb to put on phone
+    /* to test apk, kill cannongame already in emulator
+       settings/apps, find cannongame, uninstall
+       go to command prompt/terminal and find adb to put on phone */
 
     private CannonThread cannonThread; // controls the game loop
     private Activity activity; // to display Game Over dialog in GUI thread
