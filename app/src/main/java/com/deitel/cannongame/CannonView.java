@@ -2,8 +2,10 @@ package com.deitel.cannongame;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.AlertDialog.Builder;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.DialogInterface.OnClickListener;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -28,10 +30,12 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     private Activity activity; // to display Game Over dialog in GUI thread
     private boolean dialogIsDisplayed = false;
 
+    private int level;
+
     // constants for game play
-    public static final int TARGET_PIECES = 5; // sections in the target
-    public static final int MISS_PENALTY = 2; // seconds deducted on a miss
-    public static final int HIT_REWARD = 3; // seconds added on a hit
+    public int TARGET_PIECES; // sections in the target
+    public int MISS_PENALTY; // seconds deducted on a miss
+    public int HIT_REWARD; // seconds added on a hit
 
     // variables for the game loop and tracking statistics
     private boolean gameOver; // is the game over?
@@ -101,7 +105,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         cannonball = new Point(); // create the cannonball as a point
 
         // initialize hitStates as a boolean array
-        hitStates = new boolean[TARGET_PIECES];
+        // hitStates = new boolean[TARGET_PIECES];
 
         // initialize SoundPool to play the app's sound effects
         soundPool = new SoundPool(1, AudioManager.STREAM_MUSIC, 0);
@@ -136,18 +140,18 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         lineWidth = w / 24; // target and blocker 1/24 screen width
 
         // configure instance variables related to the blocker
-        blockerDistance = w * 5 / 8; // blocker 5/8 screen width from left
+        // blockerDistance = w * 5 / 8; // blocker 5/8 screen width from left
         blockerBeginning = h / 8; // distance from top 1/8 screen height
         blockerEnd = h * 3 / 8; // distance from top 3/8 screen height
         initialBlockerVelocity = h / 2; // initial blocker speed multiplier
-        blocker.start = new Point(blockerDistance, blockerBeginning);
-        blocker.end = new Point(blockerDistance, blockerEnd);
+        // blocker.start = new Point(blockerDistance, blockerBeginning);
+        // blocker.end = new Point(blockerDistance, blockerEnd);
 
         // configure instance variables related to the target
         targetDistance = w * 7 / 8; // target 7/8 screen width from left
         targetBeginning = h / 8; // distance from top 1/8 screen height
         targetEnd = h * 7 / 8; // distance from top 7/8 screen height
-        pieceLength = (targetEnd - targetBeginning) / TARGET_PIECES;
+        // pieceLength = (targetEnd - targetBeginning) / TARGET_PIECES;
         initialTargetVelocity = -h / 4; // initial target speed multiplier
         target.start = new Point(targetDistance, targetBeginning);
         target.end = new Point(targetDistance, targetEnd);
@@ -163,11 +167,35 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         targetPaint.setStrokeWidth(lineWidth); // set line thickness
         backgroundPaint.setColor(Color.WHITE); // set background color
 
-        newGame(); // set up and start a new game
+        newGame(false); // set up and start a new game
     }
 
     // reset all the screen elements and start a new game
-    public void newGame() {
+    public void newGame(boolean reset) {
+        if (reset) {
+            level = 1;
+            timeLeft = 60.0;
+            MISS_PENALTY = 2;
+            HIT_REWARD = 3;
+            blockerDistance = (screenWidth * 5) / 8;
+            blocker.start = new Point(blockerDistance, blockerBeginning);
+            blocker.end = new Point(blockerDistance, blockerEnd);
+        } else {
+            level++;
+            TARGET_PIECES += 2;
+            MISS_PENALTY++;
+            if (HIT_REWARD > 0) {
+                HIT_REWARD--;
+            }
+            if (blockerDistance > 300) {
+                blockerDistance -= 100;
+            }
+            blocker.start = new Point(blockerDistance, blockerBeginning);
+            blocker.end = new Point(blockerDistance, blockerEnd);
+        }
+        // initialize hitStates as a boolean array
+        hitStates = new boolean[TARGET_PIECES];
+        pieceLength = (targetEnd - targetBeginning) / TARGET_PIECES;
         // set every element of hitStates to false--restores target pieces
         for (int i = 0; i < TARGET_PIECES; ++i)
             hitStates[i] = false;
@@ -175,7 +203,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         targetPiecesHit = 0; // no target pieces have been hit
         blockerVelocity = initialBlockerVelocity; // set initial velocity
         targetVelocity = initialTargetVelocity; // set initial velocity
-        timeLeft = 60; // starts the countdown at 60 seconds
+        // timeLeft = 60; // starts the countdown at 60 seconds
         cannonballOnScreen = false; // the cannonball is not on the screen
         shotsFired = 0; // set the initial number of shots fired
         totalElapsedTime = 0.0; // set the time elapsed to zero
@@ -398,10 +426,20 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
                 {
                     // called when "Reset Game" Button is pressed
                     @Override
-                    public void onClick(DialogInterface dialog, int which)
-                    {
-                        dialogIsDisplayed = false;
-                        newGame(); // set up and start a new game
+                    public void onClick(DialogInterface dialog, int which) {
+                        /* dialogIsDisplayed = false;
+                        newGame(false); // set up and start a new game */
+
+                        CannonView cannonView;
+                        boolean z = false;
+                        CannonView.this.dialogIsDisplayed = false;
+                        if (CannonView.this.timeLeft == 0.0) {
+                            cannonView = CannonView.this;
+                            z = true;
+                        } else {
+                            cannonView = CannonView.this;
+                        }
+                        cannonView.newGame(z);
                     }
                 }
         );
@@ -482,8 +520,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         }
 
         // changes running state
-        public void setRunning(boolean running)
-        {
+        public void setRunning(boolean running) {
             threadIsRunning = running;
         }
 
