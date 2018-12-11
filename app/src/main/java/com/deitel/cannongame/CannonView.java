@@ -18,7 +18,7 @@ import android.view.SurfaceHolder;
 import java.util.HashMap;
 import java.util.Map;
 
-public class CannonView extends SurfaceView {
+public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         //implements SurfaceHolder.Callback
 
     // to test apk for takehome final, kill cannongame already in emulator
@@ -34,7 +34,7 @@ public class CannonView extends SurfaceView {
     private boolean dialogIsDisplayed = false;
 
     // constants for game play
-    public static final int TARGET_PIECES = 7; // sections in the target
+    public static final int TARGET_PIECES = 5; // sections in the target
     public static final int MISS_PENALTY = 2; // seconds deducted on a miss
     public static final int HIT_REWARD = 3; // seconds added on a hit
 
@@ -241,7 +241,7 @@ public class CannonView extends SurfaceView {
         targetPiecesHit = 0;
         blockerVelocity = initialBlockerVelocity;
         targetVelocity = initialTargetVelocity;
-        timeLeft = 10;
+        timeLeft = 60;
         cannonballOnScreen = false;
         shotsFired = 0;
         totalElapsedTime = 0.0;
