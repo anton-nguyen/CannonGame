@@ -187,7 +187,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
             if (HIT_REWARD > 0) {
                 HIT_REWARD--;
             }
-            if (blockerDistance > 300) {
+            if (blockerDistance > 200) {
                 blockerDistance -= 100;
             }
             blocker.start = new Point(blockerDistance, blockerBeginning);
@@ -233,40 +233,66 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
                 soundPool.play(soundMap.get(EXTRA_SOUND_ID), 1, 1, 1, 0, 1f);
             }
 
-            if (cannonball.x + cannonballRadius <= blockerDistance || cannonball.x - cannonballRadius >= blockerDistance || cannonball.y + cannonballRadius <= blocker.start.y || cannonball.y - cannonballRadius >= blocker.end.y) {
-                if (cannonball.x + cannonballRadius <= screenWidth) {
-                    if (cannonball.x - cannonballRadius >= 0) {
-                        if (cannonball.y + cannonballRadius <= screenHeight) {
-                            if (cannonball.y - cannonballRadius >= 0) {
-                                if (cannonball.x + cannonballRadius > targetDistance && cannonball.x - cannonballRadius < targetDistance && cannonball.y + cannonballRadius > target.start.y && cannonball.y - cannonballRadius < target.end.y) {
-                                    int section = (int) ((cannonball.y - target.start.y) / pieceLength);
-                                    if (section >= 0 && section < TARGET_PIECES && !hitStates[section]) {
-                                        hitStates[section] = true;
-                                        cannonballOnScreen = false;
-                                        timeLeft += HIT_REWARD;
-                                        soundPool.play(soundMap.get(TARGET_SOUND_ID), 1, 1, 1, 0, 1f);
-                                        int i = targetPiecesHit + 1;
-                                        targetPiecesHit = i;
-                                        if (i == TARGET_PIECES) {
-                                            cannonThread.setRunning(false);
-                                            showGameOverDialog(R.string.win);
-                                            gameOver = true;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        cannonballOnScreen = false;
+            // check for collision with blocker
+            if (cannonball.x + cannonballRadius > blockerDistance &&
+                    cannonball.x - cannonballRadius < blockerDistance &&
+                    cannonball.y + cannonballRadius > blocker.start.y &&
+                    cannonball.y - cannonballRadius < blocker.end.y) {
+                cannonballVelocityX *= -1; // reverse cannonball's direction
+                timeLeft -= MISS_PENALTY; // penalize the user
+
+                // play blocker sound
+                soundPool.play(soundMap.get(BLOCKER_SOUND_ID), 1, 1, 1, 0, 1f);
+            }
+            // check for collisions with left and right walls
+            else if (cannonball.x + cannonballRadius > screenWidth || cannonball.x - cannonballRadius < 0)
+                cannonballOnScreen = false; // remove cannonball from screen
+                // check for collisions with top and bottom walls
+                /* else if (cannonball.y + cannonballRadius < 0) */
+            else if (cannonball.y + cannonballRadius > screenHeight ||
+                    cannonball.y - cannonballRadius < 0)
+                cannonballOnScreen = false; // remove cannonball from screen
+                // check for cannonball collision with target
+            else if (cannonball.x + cannonballRadius > targetDistance &&
+                    cannonball.x - cannonballRadius < targetDistance &&
+                    cannonball.y + cannonballRadius > target.start.y &&
+                    cannonball.y - cannonballRadius < target.end.y) {
+                // determine target section number (0 is the top)
+                int section = (int) ((cannonball.y - target.start.y) / pieceLength);
+                // check if the piece hasn't been hit yet
+                if ((section >= 0 && section < TARGET_PIECES) && !hitStates[section]) {
+                    hitStates[section] = true; // section was hit
+                    cannonballOnScreen = false; // remove cannonball
+                    timeLeft += HIT_REWARD; // add reward to remaining time
+
+                    // play target hit sound
+                    soundPool.play(soundMap.get(TARGET_SOUND_ID), 1, 1, 1, 0, 1f);
+
+                    /* targetPiecesHit = targetPiecesHit + 1; */
+
+                    // if all pieces have been hit
+                    if (++targetPiecesHit == TARGET_PIECES) {
+                        cannonThread.setRunning(false); // terminate thread
+                        showGameOverDialog(R.string.win); // show winning dialog
+                        gameOver = true;
                     }
                 }
-                cannonballOnScreen = false;
-            } else {
-                cannonballVelocityX *= -1;
-                timeLeft = timeLeft - MISS_PENALTY;
-                soundPool.play(soundMap.get(BLOCKER_SOUND_ID), 1, 1, 1, 0, 1f);
             }
         }
 
+        soundPool.play(soundMap.get(EXTRA_SOUND_ID), 1, 1, 1, 0, 1f);
+
+        // update the blocker's position
+        double blockerUpdate = interval * blockerVelocity;
+        blocker.start.y += blockerUpdate;
+        blocker.end.y += blockerUpdate;
+
+        // update the target's position
+        double targetUpdate = interval * targetVelocity;
+        target.start.y += targetUpdate;
+        target.end.y += targetUpdate;
+
+        // if the blocker hit the top or bottom, reverse direction
         if (blocker.start.y < 0 || blocker.end.y > screenHeight)
             blockerVelocity *= -1;
 
@@ -398,9 +424,8 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
         // display number of shots fired and total time elapsed
         dialogBuilder.setMessage(getResources().getString(
-                R.string.results_format, shotsFired, totalElapsedTime));
-        dialogBuilder.setPositiveButton(R.string.reset_game,
-                new DialogInterface.OnClickListener()
+                R.string.results_format, level, shotsFired, totalElapsedTime));
+        dialogBuilder.setPositiveButton(timeLeft == 0.0 ? R.string.reset_game : R.string.next_level, new DialogInterface.OnClickListener()
                 {
                     // called when "Reset Game" Button is pressed
                     @Override
